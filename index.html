@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PMP Study Hub</title>
+<meta name="description" content="Personal PMP study hub — notes aligned to the 2026 PMP exam outline, PM mindset trainer, flashcards and practice quizzes.">
+<meta name="theme-color" content="#1f4e79">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="#/" class="brand"><span class="logo">PMP</span><span class="brand-text">Study Hub</span></a>
+  <div class="top-actions">
+    <span id="countdown" class="countdown" title="Target exam: December 2027"></span>
+    <button id="themeBtn" class="icon-btn" aria-label="Toggle dark mode">◐</button>
+  </div>
+</header>
+
+<nav class="nav" id="nav" aria-label="Main">
+  <a href="#/" data-r="home"><span>🏠</span><b>Home</b></a>
+  <a href="#/notes" data-r="notes"><span>📘</span><b>Notes</b></a>
+  <a href="#/mindset" data-r="mindset"><span>🧠</span><b>Mindset</b></a>
+  <a href="#/cards" data-r="cards"><span>🃏</span><b>Cards</b></a>
+  <a href="#/quiz" data-r="quiz"><span>✅</span><b>Quiz</b></a>
+  <a href="#/tools" data-r="tools"><span>🧮</span><b>Tools</b></a>
+  <a href="#/resources" data-r="resources"><span>🔗</span><b>Sources</b></a>
+</nav>
+
+<main id="app" class="app" tabindex="-1"></main>
+
+<footer class="foot">
+  Personal study notes written in my own words and aligned to the PMI <i>PMP Examination Content Outline</i> (2026). Not affiliated with or endorsed by PMI.
+  PMI, PMP and PMBOK are registered marks of the Project Management Institute, Inc.
+</footer>
+
+<script src="js/content.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
