@@ -64,6 +64,7 @@
         <a class="tile" href="#/mindset"><div class="ico">🧠</div><h3>2 mindset drills</h3><p>Train the "what would a PM do?" reflex.</p></a>
         <a class="tile" href="#/cards"><div class="ico">🃏</div><h3>10 flashcards</h3><p>Formulas & terms, tap to flip.</p></a>
         <a class="tile" href="#/quiz"><div class="ico">✅</div><h3>Take a quiz set</h3><p>15 questions with justifications.</p></a>
+        <a class="tile" href="#/log"><div class="ico">📒</div><h3>Experience log</h3><p>Build your 36 months for the application.</p></a>
       </div>
 
       <h2>Your 14-month roadmap</h2>
@@ -288,12 +289,175 @@
     $("#reset").onclick = () => { if (confirm("Reset all progress on this device?")) { store = { done: {}, best: {}, mind: {}, known: {}, theme: store.theme }; save(); home(); location.hash = "#/"; } };
   }
 
+  /* ---------- experience log (kept only on this device) ---------- */
+  const LOGKEY = "pmp-hub-explog-v1";
+  let xlog = { apply: "2027-08", projects: [] };
+  try { Object.assign(xlog, JSON.parse(localStorage.getItem(LOGKEY)) || {}); } catch (e) {}
+  const saveLog = () => { try { localStorage.setItem(LOGKEY, JSON.stringify(xlog)); } catch (e) {} };
+  const mIdx = (ym) => { const [y, m] = ym.split("-").map(Number); return y * 12 + (m - 1); };
+  const ymOf = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const fmtYm = (ym) => (ym ? `${MON[+ym.slice(5) - 1]} ${ym.slice(0, 4)}` : "");
+  const thisYm = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+  const words = (s) => (s.trim().match(/\S+/g) || []).length;
+  const PHASES = ["Initiating", "Planning", "Executing", "Monitoring & Controlling", "Closing"];
+  const FIELDS = [
+    ["title", "Project title", "text", "e.g. Upgrading of Jalan … (Package 2)"],
+    ["org", "Organisation", "text", "Company you worked for"],
+    ["client", "Client / owner", "text", "e.g. JKR Sarawak"],
+    ["role", "Your job title", "text", "e.g. Site Engineer / Project Engineer"],
+    ["verifier", "Verifier (name & position)", "text", "Supervisor / PD who can confirm if audited"],
+    ["vcontact", "Verifier contact", "text", "Email or phone"],
+    ["start", "Start month", "month"], ["end", "End month (blank = ongoing)", "month"],
+    ["team", "Team size", "text", "e.g. 25"], ["budget", "Budget (approx.)", "text", "e.g. RM 12 mil"],
+  ];
+
+  function coverage() {
+    const end = mIdx(xlog.apply), start = end - 95; // 8-year window = 96 months
+    const cover = new Map();
+    xlog.projects.forEach((p, k) => {
+      if (!p.start) return;
+      const a = mIdx(p.start), b = mIdx(p.end || thisYm());
+      for (let i = Math.max(a, start); i <= Math.min(b, end); i++) (cover.get(i) || cover.set(i, []).get(i)).push(k);
+    });
+    return { start, end, cover, months: cover.size };
+  }
+
+  function explog() {
+    const c = coverage(), pct = Math.min(100, (c.months / 36) * 100);
+    const years = []; for (let y = Math.floor(c.start / 12); y <= Math.floor(c.end / 12); y++) years.push(y);
+    const grid = years.map((y) => `<div class="mrow"><span class="yr">${y}</span>${MON.map((m, i) => {
+      const idx = y * 12 + i, inWin = idx >= c.start && idx <= c.end, ps = c.cover.get(idx);
+      const cls = !inWin ? "out" : ps ? (ps.length > 1 ? "ovl" : "on") : "";
+      return `<i class="${cls}" title="${m} ${y}${ps ? " · " + ps.map((k) => esc(xlog.projects[k].title || "Untitled")).join(", ") : ""}"></i>`;
+    }).join("")}</div>`).join("");
+
+    app.innerHTML = `<h1>📒 Experience log</h1>
+      <p class="muted">Record the projects you <b>led or directed</b>. You need <b>36 unique months</b> inside the 8 years before you apply. Overlapping months count once.</p>
+      <div class="card small">🔒 <b>Private to this device.</b> Entries are saved only in this browser and never uploaded. Use <b>Backup</b> regularly, and <b>Restore</b> to move the log to another phone or laptop.</div>
+
+      <div class="card">
+        <div class="row spread"><h2 style="margin:0">${c.months} / 36 months</h2>
+          <label class="small muted">Planned application <input type="month" id="applyAt" value="${xlog.apply}" class="inl"></label></div>
+        <div class="bar" style="height:12px;margin:10px 0"><i style="width:${pct}%;${c.months >= 36 ? "" : "background:var(--accent)"}"></i></div>
+        <p class="small" style="margin:0">${c.months >= 36 ? `✅ Requirement met — ${c.months - 36} months of margin. Keep 3–6 months spare in case PMI questions a project.` : `Counting window: <b>${fmtYm(ymOf(c.start))} – ${fmtYm(ymOf(c.end))}</b>. <b>${36 - c.months} more months</b> needed.`}</p>
+        <div class="mgrid">${grid}</div>
+        <p class="small muted"><span class="lg on"></span> counted <span class="lg ovl"></span> overlap (counted once) <span class="lg"></span> gap <span class="lg out"></span> outside window. Ongoing projects count up to this month.</p>
+      </div>
+
+      <div class="row spread"><h2>Projects (${xlog.projects.length})</h2><button class="btn" id="addP">＋ Add project</button></div>
+      ${xlog.projects.length ? "" : `<div class="card muted">No projects yet. Start with your longest project where you planned and controlled the work.</div>`}
+      ${xlog.projects.map((p, k) => {
+        const n = words(p.desc || ""), mo = p.start ? mIdx(p.end || thisYm()) - mIdx(p.start) + 1 : 0;
+        const done = (p.phases || []).length;
+        return `<div class="card">
+          <div class="row spread"><div><b>${esc(p.title || "Untitled project")}</b><div class="small muted">${esc(p.role || "")}${p.org ? " · " + esc(p.org) : ""}</div></div>
+            <div class="row"><button class="btn ghost" data-edit="${k}">Edit</button><button class="btn ghost" data-del="${k}" aria-label="Delete">🗑</button></div></div>
+          <p class="small" style="margin:6px 0 0">📅 ${fmtYm(p.start) || "?"} – ${p.end ? fmtYm(p.end) : "ongoing"} (${mo} mo) · 📝 ${n} words ${n < 200 ? '<span class="badc">(aim 200–500)</span>' : n > 500 ? '<span class="badc">(over 500)</span>' : '<span class="good">✓</span>'} · 🔁 ${done}/5 phases ${p.verifier ? "· ✔ verifier" : '· <span class="badc">no verifier</span>'}</p>
+        </div>`; }).join("")}
+
+      <div class="card"><h2 style="margin-top:0">Backup & export</h2>
+        <div class="row">
+          <button class="btn ghost" id="bk">⬇ Backup (.json)</button>
+          <label class="btn ghost" style="cursor:pointer">⬆ Restore<input type="file" id="rs" accept=".json,application/json" hidden></label>
+          <button class="btn ghost" id="cp">📋 Copy as text</button>
+        </div>
+        <p class="small muted">"Copy as text" gives a clean version you can paste into Word, email to yourself, or use when filling the PMI form.</p></div>
+
+      <details class="reveal"><summary>✍️ How to write a strong description (with example)</summary>
+        <p class="small">Write <b>what you did</b>, using "I" and PM verbs, across the life cycle. Use one or two sentences per phase, then the outcome. Keep it to 200–500 words and say "I", not "we".</p>
+        <div class="small" style="background:var(--surface);border-radius:10px;padding:10px">
+          <b>Objective:</b> Construct a 2.4 km dual-carriageway upgrade with drainage and a box culvert within 30 months.<br>
+          <b>Initiating:</b> I reviewed the contract scope and drawings with the PD, identified key stakeholders (client's representative, utility agencies, local council) and helped set the project's success criteria.<br>
+          <b>Planning:</b> I developed the work breakdown and the baseline programme in Primavera P6, planned resources and plant, and prepared method statements and the traffic management plan. I also identified risks such as monsoon flooding and utility clashes, with mitigation measures.<br>
+          <b>Executing:</b> I led a team of 3 supervisors and 4 subcontractors, coordinated daily site activities, and ran weekly coordination meetings.<br>
+          <b>Monitoring & Controlling:</b> I tracked progress against the baseline, prepared monthly reports, and evaluated variations through the change procedure. I recovered a 6-week delay by resequencing the culvert works, and I controlled quality through ITPs and inspections.<br>
+          <b>Closing:</b> I obtained the CPC, closed out defects, handed over as-built records, and documented lessons learned.<br>
+          <b>Outcome:</b> Completed 3 weeks ahead of the revised completion date, within budget, with zero lost-time injuries.
+        </div>
+        <p class="small muted">This is an example only. Replace it with your real facts. Never exaggerate, because your verifier must be able to confirm it.</p>
+      </details>`;
+
+    $("#applyAt").onchange = (e) => { if (e.target.value) { xlog.apply = e.target.value; saveLog(); explog(); } };
+    $("#addP").onclick = () => editProject(-1);
+    app.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => editProject(+b.dataset.edit)));
+    app.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => {
+      const p = xlog.projects[+b.dataset.del];
+      if (confirm(`Delete "${p.title || "Untitled project"}"? Back up first if unsure.`)) { xlog.projects.splice(+b.dataset.del, 1); saveLog(); explog(); }
+    }));
+    $("#bk").onclick = () => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(xlog, null, 2)], { type: "application/json" }));
+      a.download = `pmp-experience-log-${thisYm()}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    $("#rs").onchange = (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      f.text().then((t) => {
+        const d = JSON.parse(t);
+        if (!Array.isArray(d.projects)) throw new Error("bad file");
+        if (confirm(`Replace the current log with ${d.projects.length} project(s) from this backup?`)) { xlog = { apply: d.apply || xlog.apply, projects: d.projects }; saveLog(); explog(); }
+      }).catch(() => alert("That file doesn't look like an experience-log backup."));
+    };
+    $("#cp").onclick = () => {
+      const t = xlog.projects.map((p, k) => [`PROJECT ${k + 1}: ${p.title || ""}`,
+        `Organisation: ${p.org || ""} | Client: ${p.client || ""}`, `Role: ${p.role || ""}`,
+        `Dates: ${fmtYm(p.start)} – ${p.end ? fmtYm(p.end) : "ongoing"} | Approach: ${p.approach || ""} | Team: ${p.team || ""} | Budget: ${p.budget || ""}`,
+        `Verifier: ${p.verifier || ""} (${p.vcontact || ""})`, `Phases covered: ${(p.phases || []).join(", ")}`,
+        `Objective: ${p.objective || ""}`, `Outcome: ${p.outcome || ""}`, `Description:\n${p.desc || ""}`].join("\n")).join("\n\n---\n\n");
+      const done = () => { $("#cp").textContent = "✓ Copied"; setTimeout(() => ($("#cp").textContent = "📋 Copy as text"), 1500); };
+      (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(done, () => prompt("Copy the text below:", t));
+    };
+  }
+
+  function editProject(k) {
+    const p = k >= 0 ? { ...xlog.projects[k] } : { phases: [] };
+    app.innerHTML = `<p class="small"><a href="#/log" id="back">← Experience log</a></p>
+      <h1>${k >= 0 ? "Edit" : "Add"} project</h1>
+      <form class="card" id="pf">
+        <div class="form">${FIELDS.map(([f, l, t, ph]) => `<label>${l}<input name="${f}" type="${t}" value="${esc(p[f] || "")}" ${ph ? `placeholder="${esc(ph)}"` : ""}></label>`).join("")}
+          <label>Approach<select name="approach" class="sel">${["Predictive", "Hybrid", "Agile"].map((a) => `<option ${p.approach === a ? "selected" : ""}>${a}</option>`).join("")}</select></label>
+        </div>
+        <h3>Phases you personally led</h3>
+        <div class="chips">${PHASES.map((ph) => `<label class="chip ${(p.phases || []).includes(ph) ? "on" : ""}"><input type="checkbox" name="phases" value="${ph}" hidden ${(p.phases || []).includes(ph) ? "checked" : ""}>${ph}</label>`).join("")}</div>
+        <p class="small muted">You don't need all five on every project, but across your projects try to show all of them.</p>
+        <div class="form" style="grid-template-columns:1fr">
+          <label>Project objective (1–2 sentences)<textarea name="objective" rows="2">${esc(p.objective || "")}</textarea></label>
+          <label>Outcome (time / cost / quality / safety result)<textarea name="outcome" rows="2">${esc(p.outcome || "")}</textarea></label>
+          <label>Your role & responsibilities, in PM language <span id="wc" class="small"></span><textarea name="desc" rows="10" placeholder="Initiating: I… Planning: I… Executing: I… Monitoring & Controlling: I… Closing: I…">${esc(p.desc || "")}</textarea></label>
+        </div>
+        <div class="small muted" style="margin:6px 0">Tap to insert a verb: <span class="chips" id="verbs" style="display:inline-flex">${["Planned", "Developed", "Led", "Coordinated", "Monitored", "Controlled", "Evaluated", "Negotiated", "Mitigated", "Reported", "Resolved", "Handed over"].map((v) => `<button type="button" class="chip">${v}</button>`).join("")}</span></div>
+        <div class="row spread" style="margin-top:12px"><button type="button" class="btn ghost" id="cancel">Cancel</button><button class="btn" type="submit">Save project</button></div>
+      </form>`;
+    const ta = app.querySelector("[name=desc]"), wc = $("#wc");
+    const upd = () => { const n = words(ta.value); wc.innerHTML = `· ${n} words ${n < 200 ? '<span class="badc">aim 200–500</span>' : n > 500 ? '<span class="badc">over 500</span>' : '<span class="good">✓ good length</span>'}`; };
+    ta.oninput = upd; upd();
+    $("#verbs").onclick = (e) => {
+      if (e.target.tagName !== "BUTTON") return;
+      const s = ta.selectionStart ?? ta.value.length, ins = (s && !/\s$/.test(ta.value.slice(0, s)) ? " " : "") + e.target.textContent + " ";
+      ta.value = ta.value.slice(0, s) + ins + ta.value.slice(s); ta.focus(); ta.selectionStart = ta.selectionEnd = s + ins.length; upd();
+    };
+    app.querySelectorAll(".chips label.chip").forEach((l) => (l.onclick = (e) => { e.preventDefault(); const cb = l.querySelector("input"); cb.checked = !cb.checked; l.classList.toggle("on", cb.checked); }));
+    $("#cancel").onclick = explog;
+    $("#back").onclick = (e) => { e.preventDefault(); explog(); };
+    $("#pf").onsubmit = (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target), out = {};
+      for (const [f] of FIELDS) out[f] = (fd.get(f) || "").trim();
+      ["approach", "objective", "outcome", "desc"].forEach((f) => (out[f] = (fd.get(f) || "").trim()));
+      out.phases = fd.getAll("phases");
+      if (!out.start) return alert("Please enter at least the start month.");
+      if (out.end && out.end < out.start) return alert("End month is before start month.");
+      if (k >= 0) xlog.projects[k] = out; else xlog.projects.push(out);
+      saveLog(); explog(); window.scrollTo(0, 0);
+    };
+  }
+
   /* ---------- router ---------- */
   function route() {
     clearInterval(timer);
     const [, r = "", sub] = location.hash.split("/");
     document.querySelectorAll(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.r === (r || "home")));
-    ({ "": home, notes: () => (sub ? note(sub) : notesList()), mindset: () => mindset(), cards, quiz: () => (sub ? quiz(sub) : quizList()), tools, resources }[r] || home)();
+    ({ "": home, notes: () => (sub ? note(sub) : notesList()), mindset: () => mindset(), cards, quiz: () => (sub ? quiz(sub) : quizList()), tools, resources, log: explog }[r] || home)();
     window.scrollTo(0, 0);
   }
   addEventListener("hashchange", route);
